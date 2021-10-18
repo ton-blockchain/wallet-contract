@@ -3,6 +3,8 @@
 (slice, int) dict_get?(cell dict, int key_len, slice index) asm(index dict key_len) "DICTGET" "NULLSWAPIFNOT";
 (cell, int) dict_add_builder?(cell dict, int key_len, slice index, builder value) asm(value index dict key_len) "DICTADDB";
 (cell, int) dict_delete?(cell dict, int key_len, slice index) asm(index dict key_len) "DICTDEL";
+(slice, (int)) ~load_currency(slice s) asm( -> 1 0) "LDVARUINT32";
+
 
 () recv_internal(cell in_msg_cell, slice in_msg) impure {
   var cs = in_msg_cell.begin_parse();
@@ -11,7 +13,7 @@
     ;; ignore all bounced messages
     return ();
   }
-  if((in_msg.slice_bits() < 32) || (in_msg~load_uint(32) != 0x706c7567)) { ;; "plug" prefix
+  if((in_msg.slice_bits() < 32) | (in_msg~load_uint(32) != 0x706c7567)) { ;; "plug" prefix
     ;; ignore all messages withour `request subscription` op
     return ();
   }
@@ -22,15 +24,50 @@
   var (v, success?) = plugins.dict_get?( 8 + 256, begin_cell().store_int(wc, 8).store_uint(addr_hash, 256).end_cell().begin_parse());
   throw_unless(40, success?);
   accept_message();
-  (int toncoins, cell extra) = (in_msg~load_grams(), in_msg~load_dict());
-  ;; TODO check that we have enough money and send notification if not
-  var msg = begin_cell()
+  (int r_toncoins, cell r_extra) = (in_msg~load_grams(), in_msg~load_dict());
+  (int m_toncoins, cell m_extra)  = unpair(get_balance());
+  int insolvent = m_toncoins < r_toncoins;
+  int counter = 0 ;
+  ;; do not accept request of more than 16 native currencies
+  do {
+    (int key, slice value, int found?) = r_extra~udict::delete_get_min(32);
+    if(found?) {
+      int requested_cur = value~load_currency();
+      if (requested_cur) {
+        (slice m_value, int found?) = m_extra.udict_get?(32, key);
+        if ( found? ) {
+          if (m_value~load_currency() < requested_cur ) {
+            insolvent = -1;
+          }
+        } else {
+          insolvent = -1;
+        }
+      }
+    }
+   counter += 1;
+   if (counter > 16) {
+    insolvent = -1;
+   }
+  } until ( r_extra.cell_null?() | insolvent);
+  var msg = begin_cell();
+  if ( ~ insolvent ) {
+   msg = msg
       .store_uint(0x18, 6)
       .store_slice(s_addr)
-      .store_grams(toncoins)
-      .store_dict(extra)
+      .store_grams(r_toncoins)
+      .store_dict(r_extra)
       .store_uint(0, 4 + 4 + 64 + 32 + 1 + 1)
       .store_uint(0x706c7567,32);
+  } else {
+   msg = msg
+      .store_uint(0x18, 6)
+      .store_slice(s_addr)
+      .store_grams(100000000)
+      .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+      .store_uint(0xf06c7567,32)
+      .store_grams(m_toncoins)
+      .store_dict(m_extra);
+  }
     send_raw_message(msg.end_cell(), 1);
 }
 
@@ -76,14 +113,26 @@
     slice wc_n_address = cs~load_bits(8 + 256);
     (plugins, int success?) = plugins.dict_add_builder?(8 + 256, wc_n_address, begin_cell());
     throw_unless(39, success?);
-    ;; TODO notify plugin
+    builder msg = begin_cell()
+      .store_uint(0x18, 6)
+      .store_uint(4,3).store_slice(wc_n_address)
+      .store_grams(100000000)
+      .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+      .store_uint(0x6e6f7465, 32);
+    send_raw_message(msg.end_cell(), 1);
   }
 
   if (op == 2) { ;; remove plugin
     slice wc_n_address = cs~load_bits(8 + 256);
     (plugins, int success?) = plugins.dict_delete?(8 + 256, wc_n_address);
     throw_unless(39, success?);
-    ;;TODO request self-destruct
+    builder msg = begin_cell()
+      .store_uint(0x18, 6)
+      .store_uint(4,3).store_slice(wc_n_address)
+      .store_grams(100000000)
+      .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+      .store_uint(0xde511201, 32);
+    send_raw_message(msg.end_cell(), 1);
   }
 
   set_data(begin_cell()
