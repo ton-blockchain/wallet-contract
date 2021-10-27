@@ -14,7 +14,7 @@
     return ();
   }
   if((in_msg.slice_bits() < 32) | (in_msg~load_uint(32) != 0x706c7567)) { ;; "plug" prefix
-    ;; ignore all messages withour `request subscription` op
+    ;; ignore all messages without `request subscription` op
     return ();
   }
   slice s_addr = cs~load_msg_addr();
@@ -122,7 +122,7 @@
     send_raw_message(msg.end_cell(), 1);
   }
 
-  if (op == 2) { ;; remove plugin
+  if (op == 3) { ;; remove plugin
     slice wc_n_address = cs~load_bits(8 + 256);
     (plugins, int success?) = plugins.dict_delete?(8 + 256, wc_n_address);
     throw_unless(39, success?);
