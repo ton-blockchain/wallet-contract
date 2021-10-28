@@ -3,8 +3,7 @@
 (slice, int) dict_get?(cell dict, int key_len, slice index) asm(index dict key_len) "DICTGET" "NULLSWAPIFNOT";
 (cell, int) dict_add_builder?(cell dict, int key_len, slice index, builder value) asm(value index dict key_len) "DICTADDB";
 (cell, int) dict_delete?(cell dict, int key_len, slice index) asm(index dict key_len) "DICTDEL";
-(slice, (int)) ~load_currency(slice s) asm( -> 1 0) "LDVARUINT32";
-
+(slice, int) load_currency(slice s) asm( -> 1 0) "LDVARUINT32";
 
 () recv_internal(cell in_msg_cell, slice in_msg) impure {
   var cs = in_msg_cell.begin_parse();
