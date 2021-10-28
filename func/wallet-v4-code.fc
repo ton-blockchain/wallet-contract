@@ -24,6 +24,7 @@
   var (_, success?) = plugins.dict_get?(8 + 256, begin_cell().store_int(wc, 8).store_uint(addr_hash, 256).end_cell().begin_parse());
   throw_unless(40, success?);
   accept_message();
+  int query_id = in_msg~load_uint(64);
   (int r_toncoins, cell r_extra) = (in_msg~load_grams(), in_msg~load_dict());
   [int m_toncoins, cell m_extra] = get_balance();
   int insolvent = m_toncoins < r_toncoins;
@@ -52,13 +53,15 @@
              .store_grams(r_toncoins)
              .store_dict(r_extra)
              .store_uint(0, 4 + 4 + 64 + 32 + 1 + 1)
-             .store_uint(0x706c7567,32);
+             .store_uint(0x706c7567, 32)
+             .store_uint(query_id, 64);
   } else {
     msg = msg.store_uint(0x18, 6)
              .store_slice(s_addr)
              .store_grams(100000000)
              .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-             .store_uint(0xf06c7567,32)
+             .store_uint(0xf06c7567, 32)
+             .store_uint(query_id, 64)
              .store_grams(m_toncoins)
              .store_dict(m_extra);
   }
