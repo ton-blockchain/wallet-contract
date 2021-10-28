@@ -137,6 +137,10 @@ int seqno() method_id {
   return get_data().begin_parse().preload_uint(32);
 }
 
+int get_subwallet_id() method_id {
+  return get_data().begin_parse().skip_bits(32).preload_uint(32);
+}
+
 int get_public_key() method_id {
   var cs = get_data().begin_parse().skip_bits(64);
   return cs.preload_uint(256);
