@@ -13,8 +13,13 @@
     ;; ignore all bounced messages
     return ();
   }
-  if ((in_msg.slice_bits() < 32) | (in_msg~load_uint(32) != 0x706c7567)) { ;; "plug" prefix
-    ;; ignore all messages without `request subscription` op
+  if (in_msg.slice_bits() < 32) {
+    ;; ignore simple transfers
+    return ();
+  }
+  int op = in_msg~load_uint(32);
+  if (op != 0x706c7567) & (op != 0x626c6e63) { ;; "plug" & "blnc"
+    ;; ignore all messages not related to plugins
     return ();
   }
   slice s_addr = cs~load_msg_addr();
@@ -22,45 +27,31 @@
   var ds = get_data().begin_parse().skip_bits(32 + 32 + 256);
   var plugins = ds~load_dict();
   var (_, success?) = plugins.dict_get?(8 + 256, begin_cell().store_int(wc, 8).store_uint(addr_hash, 256).end_cell().begin_parse());
-  throw_unless(40, success?);
+  if ~(success?) {
+    ;; it may be a transfer
+    return ();
+  }
   accept_message();
   int query_id = in_msg~load_uint(64);
-  (int r_toncoins, cell r_extra) = (in_msg~load_grams(), in_msg~load_dict());
-  [int m_toncoins, cell m_extra] = get_balance();
-  int insolvent = m_toncoins < r_toncoins;
-  int counter = 0;
-  ;; do not accept request of more than 16 native currencies
-  while ~(r_extra.cell_null?() | insolvent) {
-    (int key, slice value, _) = r_extra~udict::delete_get_min(32);
-    int requested_cur = value~load_currency();
-    if (requested_cur) {
-      (slice m_value, int found?) = m_extra.udict_get?(32, key);
-      if (found?) {
-        insolvent |= (m_value~load_currency() < requested_cur);
-      } else {
-        insolvent = -1;
-      }
-    }
-    counter += 1;
-    if (counter > 16) {
-     insolvent = -1;
-    }
-  }
   var msg = begin_cell();
-  if (~ insolvent) {
+  if (op == 0x706c7567) {
+    (int r_toncoins, cell r_extra) = (in_msg~load_grams(), in_msg~load_dict());
+
     msg = msg.store_uint(0x18, 6)
              .store_slice(s_addr)
              .store_grams(r_toncoins)
              .store_dict(r_extra)
              .store_uint(0, 4 + 4 + 64 + 32 + 1 + 1)
-             .store_uint(0x706c7567, 32)
+             .store_uint(0x706c7567 | 0x80000000, 32) ;; see guidelines
              .store_uint(query_id, 64);
-  } else {
+  }
+  if (op == 0x626c6e63) {
+    [int m_toncoins, cell m_extra] = get_balance();
     msg = msg.store_uint(0x18, 6)
              .store_slice(s_addr)
-             .store_grams(100000000)
+             .store_grams(0)
              .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-             .store_uint(0xf06c7567, 32)
+             .store_uint(0x626c6e63 | 0x80000000, 32) ;; see guidelines
              .store_uint(query_id, 64)
              .store_grams(m_toncoins)
              .store_dict(m_extra);
