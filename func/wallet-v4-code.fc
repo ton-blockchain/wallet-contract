@@ -13,62 +13,58 @@
     ;; ignore all bounced messages
     return ();
   }
-  if((in_msg.slice_bits() < 32) | (in_msg~load_uint(32) != 0x706c7567)) { ;; "plug" prefix
+  if ((in_msg.slice_bits() < 32) | (in_msg~load_uint(32) != 0x706c7567)) { ;; "plug" prefix
     ;; ignore all messages without `request subscription` op
     return ();
   }
   slice s_addr = cs~load_msg_addr();
   (int wc, int addr_hash) = parse_std_addr(s_addr);
-  var ds = get_data().begin_parse();
-  var (unused, plugins) = (ds~load_bits(32 + 32 + 256), ds~load_dict());
-  var (v, success?) = plugins.dict_get?( 8 + 256, begin_cell().store_int(wc, 8).store_uint(addr_hash, 256).end_cell().begin_parse());
+  var ds = get_data().begin_parse().skip_bits(32 + 32 + 256);
+  var plugins = ds~load_dict();
+  var (_, success?) = plugins.dict_get?(8 + 256, begin_cell().store_int(wc, 8).store_uint(addr_hash, 256).end_cell().begin_parse());
   throw_unless(40, success?);
   accept_message();
   (int r_toncoins, cell r_extra) = (in_msg~load_grams(), in_msg~load_dict());
-  (int m_toncoins, cell m_extra)  = unpair(get_balance());
+  [int m_toncoins, cell m_extra] = get_balance();
   int insolvent = m_toncoins < r_toncoins;
-  int counter = 0 ;
+  int counter = 0;
   ;; do not accept request of more than 16 native currencies
   do {
     (int key, slice value, int found?) = r_extra~udict::delete_get_min(32);
-    if(found?) {
+      if(found?) {
       int requested_cur = value~load_currency();
       if (requested_cur) {
         (slice m_value, int found?) = m_extra.udict_get?(32, key);
-        if ( found? ) {
-          if (m_value~load_currency() < requested_cur ) {
-            insolvent = -1;
-          }
+        if (found?) {
+          insolvent |= (m_value~load_currency() < requested_cur);
         } else {
           insolvent = -1;
         }
       }
     }
-   counter += 1;
-   if (counter > 16) {
-    insolvent = -1;
-   }
+    counter += 1;
+    if (counter > 16) {
+     insolvent = -1;
+    }
   } until ( r_extra.cell_null?() | insolvent);
   var msg = begin_cell();
-  if ( ~ insolvent ) {
-   msg = msg
-      .store_uint(0x18, 6)
-      .store_slice(s_addr)
-      .store_grams(r_toncoins)
-      .store_dict(r_extra)
-      .store_uint(0, 4 + 4 + 64 + 32 + 1 + 1)
-      .store_uint(0x706c7567,32);
+  if (~ insolvent) {
+    msg = msg.store_uint(0x18, 6)
+             .store_slice(s_addr)
+             .store_grams(r_toncoins)
+             .store_dict(r_extra)
+             .store_uint(0, 4 + 4 + 64 + 32 + 1 + 1)
+             .store_uint(0x706c7567,32);
   } else {
-   msg = msg
-      .store_uint(0x18, 6)
-      .store_slice(s_addr)
-      .store_grams(100000000)
-      .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-      .store_uint(0xf06c7567,32)
-      .store_grams(m_toncoins)
-      .store_dict(m_extra);
+    msg = msg.store_uint(0x18, 6)
+             .store_slice(s_addr)
+             .store_grams(100000000)
+             .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+             .store_uint(0xf06c7567,32)
+             .store_grams(m_toncoins)
+             .store_dict(m_extra);
   }
-    send_raw_message(msg.end_cell(), 1);
+  send_raw_message(msg.end_cell(), 1);
 }
 
 () recv_external(slice in_msg) impure {
@@ -96,10 +92,10 @@
     int plugin_balance = cs~load_grams();
     (cell state_init, cell body) = (cs~load_ref(), cs~load_ref());
     int plugin_address = cell_hash(state_init);
-    slice wc_n_address = begin_cell().store_int(plugin_workchain,8).store_uint(plugin_address,256).end_cell().begin_parse();
+    slice wc_n_address = begin_cell().store_int(plugin_workchain, 8).store_uint(plugin_address, 256).end_cell().begin_parse();
     var msg = begin_cell()
       .store_uint(0x18, 6)
-      .store_uint(4,3).store_slice(wc_n_address)
+      .store_uint(4, 3).store_slice(wc_n_address)
       .store_grams(plugin_balance)
       .store_uint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
       .store_ref(state_init)
@@ -115,7 +111,7 @@
     throw_unless(39, success?);
     builder msg = begin_cell()
       .store_uint(0x18, 6)
-      .store_uint(4,3).store_slice(wc_n_address)
+      .store_uint(4, 3).store_slice(wc_n_address)
       .store_grams(100000000)
       .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
       .store_uint(0x6e6f7465, 32);
@@ -128,7 +124,7 @@
     throw_unless(39, success?);
     builder msg = begin_cell()
       .store_uint(0x18, 6)
-      .store_uint(4,3).store_slice(wc_n_address)
+      .store_uint(4, 3).store_slice(wc_n_address)
       .store_grams(100000000)
       .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
       .store_uint(0xde511201, 32);
@@ -150,25 +146,23 @@ int seqno() method_id {
 }
 
 int get_public_key() method_id {
-  var cs = get_data().begin_parse();
-  cs~load_uint(64);
+  var cs = get_data().begin_parse().skip_bits(64);
   return cs.preload_uint(256);
 }
 
 int is_plugin_installed(int wc, int addr_hash) method_id {
-  var ds = get_data().begin_parse();
-  var (unused, plugins) = (ds~load_bits(32 + 32 + 256), ds~load_dict());
-  var (v, success?) = plugins.dict_get?( 8 + 256, begin_cell().store_int(wc, 8).store_uint(addr_hash, 256).end_cell().begin_parse());
+  var ds = get_data().begin_parse().skip_bits(32 + 32 + 256);
+  var plugins = ds~load_dict();
+  var (_, success?) = plugins.dict_get?(8 + 256, begin_cell().store_int(wc, 8).store_uint(addr_hash, 256).end_cell().begin_parse());
   return success?;
 }
 
 tuple get_plugin_list() method_id {
   var list = null();
-  var ds = get_data().begin_parse();
-  var (unused, plugins) = (ds~load_bits(32 + 32 + 256), ds~load_dict());
+  var ds = get_data().begin_parse().skip_bits(32 + 32 + 256);
+  var plugins = ds~load_dict();
   do {
-    var (load_dict, wc_n_address, value, f) = plugins.dict_delete_get_min( 8 + 256 );
-    f~touch();
+    var (load_dict, wc_n_address, _, f) = plugins.dict_delete_get_min( 8 + 256 );
     if (f) {
       (int wc, int addr) = (wc_n_address~load_int(8), wc_n_address~load_uint(256));
       list = cons(pair(wc, addr), list);
@@ -176,4 +170,3 @@ tuple get_plugin_list() method_id {
   } until (~ f);
   return list;
 }
-
