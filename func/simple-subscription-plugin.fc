@@ -1,0 +1,147 @@
+;; Simple subscription plugin for wallet-v4
+;; anyone can ask to send a subscription payment
+;; if payment request fails, the subscription is canceled
+
+(int) slice_data_equal?(slice s1, slice s2) asm "SDEQ";
+
+;; storage$_ wallet:MsgAddressInt
+;;           beneficiary:MsgAddressInt
+;;           amount:Grams
+;;           period:uint32 start_at:uint32
+;;           last_timeslot:int32
+;;           subscription_id:uint32 = Storage;
+
+;; emit empty log message (the subscription is ended)
+() emit_log_destruct() impure inline_ref {
+  var msg = begin_cell().store_uint(0x30, 6) ;; 11 00 00
+                        .store_uint(0, 64 + 32 + 2)
+           .end_cell();
+  send_raw_message(msg, 2);
+}
+
+(slice, slice, int, int, int, int, int) load_storage() impure inline_ref {
+  var ds = get_data().begin_parse();
+  return (ds~load_msg_addr(), ds~load_msg_addr(), ds~load_grams(),
+          ds~load_uint(32), ds~load_uint(32), ds~load_int(32),
+          ds~load_uint(32));
+}
+
+() save_storage(slice wallet, slice beneficiary, int amount,
+                int period, int start_at, int last_timeslot,
+                int subscription_id) impure inline_ref {
+  set_data(begin_cell()
+    .store_slice(wallet)
+    .store_slice(beneficiary)
+    .store_grams(amount)
+    .store_uint(period, 32)
+    .store_uint(start_at, 32)
+    .store_int(last_timeslot, 32)
+    .store_uint(subscription_id, 32) ;; to differ subscriptions to the same beneficiary (acts as a nonce)
+  .end_cell());
+}
+
+() forward_funds(slice destination, int self_destruct, int op) impure inline_ref {
+  if ~(self_destruct) {
+    raw_reserve(1000000000, 2); ;; reserve 1 toncoin for storage & processing fees
+  }
+  var msg = begin_cell()
+      .store_uint(0x18, 6)
+      .store_slice(destination)
+      .store_grams(0)
+      .store_dict(pair_second(get_balance()))
+      .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1);
+  if (op > 0) {
+    msg = msg.store_uint(op, 32);
+  }
+  int mode = 128;
+  if (self_destruct) {
+    mode += 32;
+  }
+  send_raw_message(msg.end_cell(), mode);
+}
+
+() self_destruct() impure inline_ref {
+  emit_log_destruct();
+  forward_funds(wallet, true, 0x64737472); ;; ask to remove from plugins list
+}
+
+() recv_internal(int msg_value, cell in_msg_cell, slice in_msg) impure {
+  var (wallet, beneficiary, amount, period, start_at, last_timeslot, subscription_id) = load_storage();
+  var cs = in_msg_cell.begin_parse();
+  var flags = cs~load_uint(4);
+  slice s_addr = cs~load_msg_addr();
+
+  if (slice_data_equal?(s_addr, beneficiary)) {
+    int op = in_msg~load_uint(32);
+    if (op == 0x64737472) { ;; "dstr"
+        ;; end subscription
+        return self_destruct();
+    }
+    return forward_funds(wallet, false, 0);
+  }
+  if (~ slice_data_equal?(s_addr, wallet)) {
+    ;; forward funds to the wallet
+    return forward_funds(wallet, false, 0);
+  }
+  if (in_msg.slice_bits() < 32) {
+    ;; simple transfer, return change to the wallet
+    return forward_funds(wallet, false, 0);
+  }
+  int op = in_msg~load_uint(32) & 0x7fffffff;
+
+  if ((op == 0x706c7567) & (flags & 1)) {
+    ;; payment request failed, self-destructing
+    return self_destruct();
+  }
+  if (op == 0x706c7567) {
+    ;; payment request succeed
+    return forward_funds(beneficiary, false, 0);
+  }
+  if (op == 0xde511201) { ;; self-destruct
+    ;; forward all the remaining funds to the wallet
+    return self_destruct();
+  }
+  if ((op == 0x696e6974) & (start_at == 0)) { ;; "init", deployed by the wallet
+    accept_message();
+    start_at = now();
+    save_storage(wallet, beneficiary, amount, period, start_at, cur_timeslot, subscription_id);
+  }
+}
+
+() request_payment(slice wallet, int amount, int cur_timeslot) impure inline_ref {
+  var msg = begin_cell().store_uint(0x18, 6)
+                        .store_slice(wallet)
+                        .store_grams(100000000) ;; 0.1 toncoin
+                        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                        .store_uint(0x706c7567, 32) ;; request op
+                        .store_uint(cur_timeslot, 64) ;; query_id
+                        .store_grams(amount)
+                        .store_uint(0, 1); ;; empty extra
+  send_raw_message(msg.end_cell(), 3);
+}
+
+() recv_external(slice in_msg) impure {
+  var (wallet, beneficiary, amount, period, start_at, last_timeslot, subscription_id) = load_storage();
+  if (start_at == 0) {
+    ;; last_timeslot should be -1 initially
+    start_at = now();
+  }
+  int cur_timeslot = (now() - start_at) / period;
+  if (cur_timeslot > last_timeslot + 1) {
+    ;; timeslot was missed, end the subscription
+    accept_message();
+    return self_destruct();
+  }
+  throw_unless(30, cur_timeslot == last_timeslot + 1); ;; too early request
+  accept_message();
+  request_payment(wallet, amount, cur_timeslot);
+  save_storage(wallet, beneficiary, amount, period, start_at, cur_timeslot, subscription_id);
+}
+
+;; Get methods
+
+([int, int], [int, int], int, int, int, int) get_subscription_data() method_id {
+  var (wallet, beneficiary, amount, period, start_at, last_timeslot, subscription_id) = load_storage();
+  return (pair(parse_std_addr(wallet)), pair(parse_std_addr(beneficiary)),
+          amount, period, start_at, last_timeslot);
+}
