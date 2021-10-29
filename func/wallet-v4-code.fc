@@ -78,6 +78,13 @@
   throw_unless(34, subwallet_id == stored_subwallet);
   throw_unless(35, check_signature(slice_hash(in_msg), signature, public_key));
   accept_message();
+  set_data(begin_cell()
+    .store_uint(stored_seqno + 1, 32)
+    .store_uint(stored_subwallet, 32)
+    .store_uint(public_key, 256)
+    .store_dict(plugins)
+    .end_cell());
+  commit();
   cs~touch();
   int op = cs~load_uint(8);
   if (op == 0) { ;; simple send
