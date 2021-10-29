@@ -40,8 +40,8 @@
   .end_cell());
 }
 
-() forward_funds(slice destination, int self_destruct, int op) impure inline_ref {
-  if ~(self_destruct) {
+() forward_funds(slice destination, int self_destruct?, int op) impure inline_ref {
+  if ~(self_destruct?) {
     raw_reserve(1000000000, 2); ;; reserve 1 toncoin for storage & processing fees
   }
   var msg = begin_cell()
@@ -54,13 +54,13 @@
     msg = msg.store_uint(op, 32);
   }
   int mode = 128;
-  if (self_destruct) {
+  if (self_destruct?) {
     mode += 32;
   }
   send_raw_message(msg.end_cell(), mode);
 }
 
-() self_destruct() impure inline_ref {
+() self_destruct(slice wallet) impure inline_ref {
   emit_log_destruct();
   forward_funds(wallet, true, 0x64737472); ;; ask to remove from plugins list
 }
@@ -75,7 +75,7 @@
     int op = in_msg~load_uint(32);
     if (op == 0x64737472) { ;; "dstr"
         ;; end subscription
-        return self_destruct();
+        return self_destruct(wallet);
     }
     return forward_funds(wallet, false, 0);
   }
@@ -91,7 +91,7 @@
 
   if ((op == 0x706c7567) & (flags & 1)) {
     ;; payment request failed, self-destructing
-    return self_destruct();
+    return self_destruct(wallet);
   }
   if (op == 0x706c7567) {
     ;; payment request succeed
@@ -99,12 +99,12 @@
   }
   if (op == 0xde511201) { ;; self-destruct
     ;; forward all the remaining funds to the wallet
-    return self_destruct();
+    return self_destruct(wallet);
   }
   if ((op == 0x696e6974) & (start_at == 0)) { ;; "init", deployed by the wallet
     accept_message();
     start_at = now();
-    save_storage(wallet, beneficiary, amount, period, start_at, cur_timeslot, subscription_id);
+    save_storage(wallet, beneficiary, amount, period, start_at, last_timeslot, subscription_id);
   }
 }
 
@@ -130,7 +130,7 @@
   if (cur_timeslot > last_timeslot + 1) {
     ;; timeslot was missed, end the subscription
     accept_message();
-    return self_destruct();
+    return self_destruct(wallet);
   }
   throw_unless(30, cur_timeslot == last_timeslot + 1); ;; too early request
   accept_message();
