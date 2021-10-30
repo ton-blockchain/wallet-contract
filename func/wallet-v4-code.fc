@@ -31,7 +31,6 @@
     ;; it may be a transfer
     return ();
   }
-  accept_message();
   int query_id = in_msg~load_uint(64);
   var msg = begin_cell();
   if (op == 0x706c7567) {

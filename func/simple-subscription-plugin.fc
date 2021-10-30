@@ -75,13 +75,13 @@
   send_raw_message(msg.end_cell(), 3);
 }
 
-() request_payment(slice wallet, int amount, int cur_timeslot) impure inline_ref {
+() request_payment(slice wallet, int amount) impure inline_ref {
   var msg = begin_cell().store_uint(0x18, 6)
                         .store_slice(wallet)
                         .store_grams(100000000) ;; 0.1 toncoin
                         .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
                         .store_uint(0x706c7567, 32) ;; request op
-                        .store_uint(cur_timeslot, 64) ;; query_id
+                        .store_uint(cur_lt(), 64) ;; query_id
                         .store_grams(amount)
                         .store_uint(0, 1); ;; empty extra
   send_raw_message(msg.end_cell(), 3);
@@ -132,7 +132,7 @@
   int cur_timeslot = (now() - start_at) / period;
   throw_unless(30, (cur_timeslot > last_timeslot) & (last_request + (period >> 3) < now())); ;; too early request
   accept_message();
-  request_payment(wallet, amount, cur_timeslot);
+  request_payment(wallet, amount);
   save_storage(wallet, beneficiary, amount, period, start_at, cur_timeslot, now(), subscription_id);
 }
 
