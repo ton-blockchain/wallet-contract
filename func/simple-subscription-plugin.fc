@@ -49,10 +49,8 @@
       .store_slice(destination)
       .store_grams(0)
       .store_dict(pair_second(get_balance()))
-      .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1);
-  if (op > 0) {
-    msg = msg.store_uint(op, 32);
-  }
+      .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+      .store_uint(op, 32);
   int mode = 128;
   if (self_destruct?) {
     mode += 32;
@@ -62,7 +60,7 @@
 
 () self_destruct(slice beneficiary) impure inline_ref {
   emit_log_destruct();
-  forward_funds(beneficiary, true, 0x64737472); ;; ask to remove from plugins list
+  forward_funds(beneficiary, true, 0x64737472);
 }
 
 () request_plugin_removal(slice wallet) impure inline_ref {
@@ -100,22 +98,21 @@
         ;; end subscription
         return request_plugin_removal(wallet);
     }
-    return forward_funds(beneficiary, false, 0);
+    return forward_funds(beneficiary, false, 0x756e6b77);
   }
   if (~ slice_data_equal?(s_addr, wallet)) {
-    return forward_funds(beneficiary, false, 0);
+    return forward_funds(beneficiary, false, 0x756e6b77);
   }
   if (in_msg.slice_bits() < 32) {
-    return forward_funds(beneficiary, false, 0);
+    return forward_funds(beneficiary, false, 0x756e6b77);
   }
   int op = in_msg~load_uint(32) & 0x7fffffff;
 
   if (op == 0x706c7567) {
-    ;; payment request succeed
     if (~ start_at) {
       save_storage(wallet, beneficiary, amount, period, now(), last_timeslot, subscription_id);
     }
-    return forward_funds(beneficiary, false, 0);
+    return forward_funds(beneficiary, false, 0x706c7567);
   }
   if (op == 0x64737472) { ;; self-destruct
     ;; forward all the remaining funds to the beneficiary
@@ -126,7 +123,7 @@
 () recv_external(slice in_msg) impure {
   var (wallet, beneficiary, amount, period, start_at, last_timeslot, subscription_id) = load_storage();
   int cur_timeslot = (now() - start_at) / period;
-  throw_unless(30, cur_timeslot > last_timeslot + 1); ;; too early request
+  throw_unless(30, cur_timeslot > last_timeslot); ;; too early request
   accept_message();
   request_payment(wallet, amount, cur_timeslot);
   save_storage(wallet, beneficiary, amount, period, start_at, cur_timeslot, subscription_id);
