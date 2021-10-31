@@ -31,7 +31,6 @@
     ;; it may be a transfer
     return ();
   }
-  accept_message();
   int query_id = in_msg~load_uint(64);
   var msg = begin_cell();
   if (op == 0x706c7567) {
@@ -57,11 +56,16 @@
              .store_dict(m_extra);
   }
   if (op == 0x64737472) {
-    ;; auto-remove plugin
+    ;; remove plugin by its request
     plugins~dict_delete?(8 + 256, wc_n_address);
     var ds = get_data().begin_parse().first_bits(32 + 32 + 256);
     set_data(begin_cell().store_slice(ds).store_dict(plugins).end_cell());
-    return ();
+    msg = msg.store_uint(0x18, 6)
+             .store_slice(s_addr)
+             .store_grams(0)
+             .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+             .store_uint(0x64737472 | 0x80000000, 32) ;; see guidelines
+             .store_uint(query_id, 64);
   }
   send_raw_message(msg.end_cell(), 1);
 }
@@ -133,7 +137,8 @@
       .store_uint(4, 3).store_slice(wc_n_address)
       .store_grams(100000000)
       .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-      .store_uint(0xde511201, 32);
+      .store_uint(0x64737472, 32)
+      .store_uint(cur_lt(), 64); ;; query id
     send_raw_message(msg.end_cell(), 3);
   }
 
