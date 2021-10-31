@@ -96,6 +96,7 @@
       var mode = cs~load_uint(8);
       send_raw_message(cs~load_ref(), mode);
     }
+    return (); ;; have already saved the storage
   }
   if (op == 1) { ;; deploy and install plugin
     int plugin_workchain = cs~load_int(8);
