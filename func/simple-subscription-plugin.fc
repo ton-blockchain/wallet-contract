@@ -8,7 +8,7 @@
 ;; storage$_ wallet:MsgAddressInt
 ;;           beneficiary:MsgAddressInt
 ;;           amount:Grams
-;;           period:uint32 start_at:uint32
+;;           period:uint32 start_at:uint32 timeout:uint32
 ;;           last_payment:uint32
 ;;           last_request_attempt:uint32
 ;;           subscription_id:uint32 = Storage;
@@ -27,15 +27,15 @@
   send_raw_message(msg, 2);
 }
 
-(slice, slice, int, int, int, int, int, int) load_storage() impure inline_ref {
+(slice, slice, int, int, int, int, int, int, int) load_storage() impure inline_ref {
   var ds = get_data().begin_parse();
   return (ds~load_msg_addr(), ds~load_msg_addr(), ds~load_grams(),
           ds~load_uint(32), ds~load_uint(32), ds~load_uint(32),
-          ds~load_uint(32), ds~load_uint(32));
+          ds~load_uint(32), ds~load_uint(32), ds~load_uint(32));
 }
 
 () save_storage(slice wallet, slice beneficiary, int amount,
-                int period, int start_at, int last_payment,
+                int period, int start_at, timeout, int last_payment,
                 int last_request_attempt, int subscription_id) impure inline_ref {
   set_data(begin_cell()
     .store_slice(wallet)
@@ -43,6 +43,7 @@
     .store_grams(amount)
     .store_uint(period, 32)
     .store_uint(start_at, 32)
+    .store_uint(timeout, 32)
     .store_uint(last_payment, 32)
     .store_uint(last_request_attempt, 32)
     .store_uint(subscription_id, 32) ;; to differ subscriptions to the same beneficiary (acts as a nonce)
@@ -96,7 +97,7 @@
 
 
 () recv_internal(int msg_value, cell in_msg_cell, slice in_msg) impure {
-  var (wallet, beneficiary, amount, period, start_at, last_payment, last_request, subscription_id) = load_storage();
+  var (wallet, beneficiary, amount, period, start_at, timeout, last_payment, last_request, subscription_id) = load_storage();
   var cs = in_msg_cell.begin_parse();
   var flags = cs~load_uint(4);
   slice s_addr = cs~load_msg_addr();
@@ -126,7 +127,7 @@
     if (~ start_at) {
       start_at = now();
     }
-    return save_storage(wallet, beneficiary, amount, period, start_at, last_payment, last_request, subscription_id);
+    return save_storage(wallet, beneficiary, amount, period, start_at, timeout, last_payment, last_request, subscription_id);
   }
   if (op == 0x64737472) { ;; self-destruct
     ;; forward all the remaining funds to the beneficiary
@@ -135,19 +136,19 @@
 }
 
 () recv_external(slice in_msg) impure {
-  var (wallet, beneficiary, amount, period, start_at, last_payment, last_request, subscription_id) = load_storage();
+  var (wallet, beneficiary, amount, period, start_at, timeout, last_payment, last_request, subscription_id) = load_storage();
   int last_timeslot = (last_payment - start_at) / period;
   int cur_timeslot = (now() - start_at) / period;
-  throw_unless(30, (cur_timeslot > last_timeslot) & (last_request + (period >> 3) < now())); ;; too early request
+  throw_unless(30, (cur_timeslot > last_timeslot) & (last_request + timeout < now())); ;; too early request
   accept_message();
   request_payment(wallet, amount);
-  save_storage(wallet, beneficiary, amount, period, start_at, last_payment, now(), subscription_id);
+  save_storage(wallet, beneficiary, amount, period, start_at, timeout, last_payment, now(), subscription_id);
 }
 
 ;; Get methods
 
-([int, int], [int, int], int, int, int, int, int, int) get_subscription_data() method_id {
-  var (wallet, beneficiary, amount, period, start_at, last_timeslot, last_request, subscription_id) = load_storage();
+([int, int], [int, int], int, int, int, int, int, int, int) get_subscription_data() method_id {
+  var (wallet, beneficiary, amount, period, start_at, timeout, last_payment, last_request, subscription_id) = load_storage();
   return (pair(parse_std_addr(wallet)), pair(parse_std_addr(beneficiary)),
-          amount, period, start_at, last_timeslot, last_request, subscription_id);
+          amount, period, start_at, timeout, last_payment, last_request, subscription_id);
 }
