@@ -67,7 +67,7 @@
              .store_uint(0x64737472 | 0x80000000, 32) ;; see guidelines
              .store_uint(query_id, 64);
   }
-  send_raw_message(msg.end_cell(), 1);
+  send_raw_message(msg.end_cell(), 64);
 }
 
 () recv_external(slice in_msg) impure {
