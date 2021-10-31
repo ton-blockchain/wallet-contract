@@ -33,9 +33,8 @@
   }
   int query_id = in_msg~load_uint(64);
   var msg = begin_cell();
-  if (op == 0x706c7567) {
+  if (op == 0x706c7567) { ;; request funds
     (int r_toncoins, cell r_extra) = (in_msg~load_grams(), in_msg~load_dict());
-
     msg = msg.store_uint(0x18, 6)
              .store_slice(s_addr)
              .store_grams(r_toncoins)
@@ -44,7 +43,7 @@
              .store_uint(0x706c7567 | 0x80000000, 32) ;; see guidelines
              .store_uint(query_id, 64);
   }
-  if (op == 0x626c6e63) {
+  if (op == 0x626c6e63) { ;; request current balance
     [int m_toncoins, cell m_extra] = get_balance();
     msg = msg.store_uint(0x18, 6)
              .store_slice(s_addr)
