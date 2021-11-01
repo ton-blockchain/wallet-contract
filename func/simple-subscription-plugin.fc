@@ -1,6 +1,5 @@
 ;; Simple subscription plugin for wallet-v4
 ;; anyone can ask to send a subscription payment
-;; if payment request fails, the subscription is canceled
 
 (int) slice_data_equal?(slice s1, slice s2) asm "SDEQ";
 
