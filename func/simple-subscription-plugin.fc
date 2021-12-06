@@ -58,7 +58,7 @@
       .store_slice(destination)
       .store_grams(0)
       .store_dict(pair_second(get_balance()))
-      .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+      .store_uint(0, 4 + 4 + 64 + 32 + 1 + 1)
       .store_uint(op, 32);
   int mode = 128;
   if (self_destruct?) {
