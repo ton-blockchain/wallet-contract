@@ -7,6 +7,7 @@ int wallet_processing_amount() asm "16777216 PUSHINT";
 int op:destruct() asm "0x64737472 PUSHINT";
 int op:payment_request() asm "0x706c7567 PUSHINT";
 int op:fallback() asm "0x756e6b77 PUSHINT";
+int op:subscription() asm "0x73756273 PUSHINT";
 
 ;; storage$_ wallet:MsgAddressInt
 ;;           beneficiary:MsgAddressInt
@@ -128,7 +129,7 @@ int op:fallback() asm "0x756e6b77 PUSHINT";
     (int from_wc, _) = s_addr.parse_std_addr();
     if( ~(flags & 1) & (msg_value > amount - chain::short_msg_fwd_fee(from_wc) ) ) {
       last_payment = now();
-      forward_funds(beneficiary, false, op:payment_request());
+      forward_funds(beneficiary, false, op:subscription());
     }
     if (~ start_at) {
       start_at = now();
