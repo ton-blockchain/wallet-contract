@@ -3,6 +3,10 @@
 
 (int) slice_data_equal?(slice s1, slice s2) asm "SDEQ";
 
+int wallet_processing_amount() asm "16777216 PUSHINT";
+int op:destruct() asm "0x64737472 PUSHINT";
+int op:payment_request() asm "0x706c7567 PUSHINT";
+int op:fallback() asm "0x756e6b77 PUSHINT";
 
 ;; storage$_ wallet:MsgAddressInt
 ;;           beneficiary:MsgAddressInt
@@ -69,15 +73,15 @@
 
 () self_destruct(slice beneficiary) impure inline_ref {
   emit_log_destruct();
-  forward_funds(beneficiary, true, 0x64737472);
+  forward_funds(beneficiary, true, op:destruct());
 }
 
 () request_plugin_removal(slice wallet) impure inline_ref {
   var msg = begin_cell().store_uint(0x18, 6)
                         .store_slice(wallet)
-                        .store_grams(100000000) ;; 0.1 toncoin
+                        .store_grams(wallet_processing_amount())
                         .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-                        .store_uint(0x64737472, 32) ;; request op
+                        .store_uint(op:destruct(), 32) ;; request op
                         .store_uint(cur_lt(), 64); ;; query_id
   send_raw_message(msg.end_cell(), 3);
 }
@@ -85,9 +89,9 @@
 () request_payment(slice wallet, int amount) impure inline_ref {
   var msg = begin_cell().store_uint(0x18, 6)
                         .store_slice(wallet)
-                        .store_grams(100000000) ;; 0.1 toncoin
+                        .store_grams(wallet_processing_amount())
                         .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-                        .store_uint(0x706c7567, 32) ;; request op
+                        .store_uint(op:payment_request(), 32) ;; request op
                         .store_uint(cur_lt(), 64) ;; query_id
                         .store_grams(amount)
                         .store_uint(0, 1); ;; empty extra
@@ -103,35 +107,35 @@
 
   if (slice_data_equal?(s_addr, beneficiary)) {
     int op = in_msg~load_uint(32);
-    if (op == 0x64737472) { ;; "dstr"
+    if (op == op:destruct()) { ;; "dstr"
         ;; end subscription
         return request_plugin_removal(wallet);
     }
-    return forward_funds(beneficiary, false, 0x756e6b77);
+    return forward_funds(beneficiary, false, op:fallback());
   }
   if (~ slice_data_equal?(s_addr, wallet)) {
-    return forward_funds(beneficiary, false, 0x756e6b77);
+    return forward_funds(beneficiary, false, op:fallback());
   }
   if (in_msg.slice_bits() < 32) {
-    return forward_funds(beneficiary, false, 0x756e6b77);
+    return forward_funds(beneficiary, false, op:fallback());
   }
   int op = in_msg~load_uint(32) & 0x7fffffff;
 
-  if (op == 0x706c7567) {
+  if (op == op:payment_request()) {
     int last_timeslot = (last_payment - start_at) / period;
     int cur_timeslot = (now() - start_at) / period;
     throw_if(49, last_timeslot >= cur_timeslot);
     (int from_wc, _) = s_addr.parse_std_addr();
     if( ~(flags & 1) & (msg_value > amount - chain::short_msg_fwd_fee(from_wc) ) ) {
       last_payment = now();
-      forward_funds(beneficiary, false, 0x706c7567);
+      forward_funds(beneficiary, false, op:payment_request());
     }
     if (~ start_at) {
       start_at = now();
     }
     return save_storage(wallet, beneficiary, amount, period, start_at, timeout, last_payment, last_request, subscription_id);
   }
-  if (op == 0x64737472) { ;; self-destruct
+  if (op == op:destruct()) { ;; self-destruct
     ;; forward all the remaining funds to the beneficiary
     return self_destruct(beneficiary);
   }
