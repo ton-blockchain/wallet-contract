@@ -118,6 +118,9 @@
   int op = in_msg~load_uint(32) & 0x7fffffff;
 
   if (op == 0x706c7567) {
+    int last_timeslot = (last_payment - start_at) / period;
+    int cur_timeslot = (now() - start_at) / period;
+    throw_if(49, last_timeslot >= cur_timeslot);
     (int from_wc, _) = s_addr.parse_std_addr();
     if( ~(flags & 1) & (msg_value > amount - chain::short_msg_fwd_fee(from_wc) ) ) {
       last_payment = now();
