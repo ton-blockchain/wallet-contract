@@ -1,0 +1,13 @@
+#!/usr/bin/fift -s
+"TonUtil.fif" include
+"Asm.fif" include
+
+."subscription:" cr
+
+"subscription-plugin-code.fif" include
+2 boc+>B dup Bx. cr
+
+."wallet:" cr
+
+"wallet-v4-code.fif" include
+2 boc+>B dup Bx. cr

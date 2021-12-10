@@ -1,7 +1,4 @@
-func -SPA stdlib.fc wallet-v4-code.fc -o wallet-v4-code.fif
-func -SPA stdlib.fc subscription-plugin.fc -o subscription-plugin-code.fif
+func -o wallet-v4-code.fif -SPA stdlib.fc wallet-v4-code.fc
+func -o subscription-plugin-code.fif -SPA stdlib.fc simple-subscription-plugin.fc
 
-sed -i '1 ax{FA04} dup @Defop LDEXTRA @Defop LDVARUINT32' wallet-v4-code.fif
-
-fift wallet-v4-code.fif
-fift subscription-plugin-code.fif
+fift print-hext.fif
