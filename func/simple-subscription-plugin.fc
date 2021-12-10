@@ -54,7 +54,7 @@
     raw_reserve(1000000000, 2); ;; reserve 1 toncoin for storage & processing fees
   }
   var msg = begin_cell()
-      .store_uint(0x18, 6)
+      .store_uint(0x10, 6)
       .store_slice(destination)
       .store_grams(0)
       .store_dict(pair_second(get_balance()))
