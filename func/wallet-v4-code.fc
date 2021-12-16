@@ -3,7 +3,17 @@
 (slice, int) dict_get?(cell dict, int key_len, slice index) asm(index dict key_len) "DICTGET" "NULLSWAPIFNOT";
 (cell, int) dict_add_builder?(cell dict, int key_len, slice index, builder value) asm(value index dict key_len) "DICTADDB";
 (cell, int) dict_delete?(cell dict, int key_len, slice index) asm(index dict key_len) "DICTDEL";
-int gas_to_grams(int x) asm "GASTOGRAM";
+
+int gas_to_coins(int chain_id, int gas) inline_ref {
+  int config_index = 21 + chain_id;
+  var cs = config_param(config_index).begin_parse();
+  if(cs.preload_uint(8) == 0xd1) {
+    cs.skip_bits(8 + 64 + 64); ;; gas_flat_pfx
+  }
+  var t = cs~load_uint(8);
+  throw_unless(71, (t == 0xde) | (t == 0xdd));
+  return (gas * cs~load_uint(64)) >> 16;
+}
 
 () recv_internal(cell in_msg_cell, slice in_msg) impure {
   var cs = in_msg_cell.begin_parse();
@@ -44,6 +54,7 @@ int gas_to_grams(int x) asm "GASTOGRAM";
              .store_uint(0x706c7567 | 0x80000000, 32)
              .store_uint(query_id, 64);
     send_raw_message(msg.end_cell(), 64);
+
   } elseif (op == 0x64737472) { ;; remove plugin by its request
 
     plugins~dict_delete?(8 + 256, wc_n_address);
@@ -113,7 +124,8 @@ int gas_to_grams(int x) asm "GASTOGRAM";
 
     slice wc_n_address = cs~load_bits(8 + 256);
     int query_id = cs~load_uint(64);
-    int amount = gas_to_grams(10000);
+    int wc = wc_n_address.preload_int(8);
+    int amount = gas_to_coins(wc, 10000);
 
     (plugins, int success?) = plugins.dict_add_builder?(8 + 256, wc_n_address, begin_cell());
     throw_unless(39, success?);
@@ -131,7 +143,8 @@ int gas_to_grams(int x) asm "GASTOGRAM";
 
     slice wc_n_address = cs~load_bits(8 + 256);
     int query_id = cs~load_uint(64);
-    int amount = gas_to_grams(10000);
+    int wc = wc_n_address.preload_int(8);
+    int amount = gas_to_coins(wc, 10000);
 
     (plugins, int success?) = plugins.dict_delete?(8 + 256, wc_n_address);
     throw_unless(39, success?);
