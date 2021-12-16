@@ -110,7 +110,7 @@
 
     slice wc_n_address = cs~load_bits(8 + 256);
     int query_id = cs~load_uint(64);
-    int amount = gastograms(10000); ;; todo
+    int amount = gastograms(10000);
 
     (plugins, int success?) = plugins.dict_add_builder?(8 + 256, wc_n_address, begin_cell());
     throw_unless(39, success?);
@@ -128,7 +128,7 @@
 
     slice wc_n_address = cs~load_bits(8 + 256);
     int query_id = cs~load_uint(64);
-    int amount = gastograms(10000); ;; todo
+    int amount = gastograms(10000);
 
     (plugins, int success?) = plugins.dict_delete?(8 + 256, wc_n_address);
     throw_unless(39, success?);
