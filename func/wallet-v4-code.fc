@@ -42,21 +42,23 @@
              .store_uint(0, 4 + 4 + 64 + 32 + 1 + 1)
              .store_uint(0x706c7567 | 0x80000000, 32)
              .store_uint(query_id, 64);
-
+    send_raw_message(msg.end_cell(), 64);
   } elseif (op == 0x64737472) { ;; remove plugin by its request
 
     plugins~dict_delete?(8 + 256, wc_n_address);
     var ds = get_data().begin_parse().first_bits(32 + 32 + 256);
     set_data(begin_cell().store_slice(ds).store_dict(plugins).end_cell());
-    msg = msg.store_uint(0x18, 6)
-             .store_slice(s_addr)
-             .store_grams(0)
-             .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-             .store_uint(0x64737472 | 0x80000000, 32)
-             .store_uint(query_id, 64);
-
+    ;; return coins only if bounce expected
+    if (flags & 2) {
+      msg = msg.store_uint(0x18, 6)
+               .store_slice(s_addr)
+               .store_grams(0)
+               .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+               .store_uint(0x64737472 | 0x80000000, 32)
+               .store_uint(query_id, 64);
+      send_raw_message(msg.end_cell(), 64);
+    }
   }
-  send_raw_message(msg.end_cell(), 64);
 }
 
 () recv_external(slice in_msg) impure {
