@@ -3,6 +3,7 @@
 (slice, int) dict_get?(cell dict, int key_len, slice index) asm(index dict key_len) "DICTGET" "NULLSWAPIFNOT";
 (cell, int) dict_add_builder?(cell dict, int key_len, slice index, builder value) asm(value index dict key_len) "DICTADDB";
 (cell, int) dict_delete?(cell dict, int key_len, slice index) asm(index dict key_len) "DICTDEL";
+int gas_to_grams(int x) asm "GASTOGRAM";
 
 () recv_internal(cell in_msg_cell, slice in_msg) impure {
   var cs = in_msg_cell.begin_parse();
@@ -112,7 +113,7 @@
 
     slice wc_n_address = cs~load_bits(8 + 256);
     int query_id = cs~load_uint(64);
-    int amount = gastograms(10000);
+    int amount = gas_to_grams(10000);
 
     (plugins, int success?) = plugins.dict_add_builder?(8 + 256, wc_n_address, begin_cell());
     throw_unless(39, success?);
@@ -130,7 +131,7 @@
 
     slice wc_n_address = cs~load_bits(8 + 256);
     int query_id = cs~load_uint(64);
-    int amount = gastograms(10000);
+    int amount = gas_to_grams(10000);
 
     (plugins, int success?) = plugins.dict_delete?(8 + 256, wc_n_address);
     throw_unless(39, success?);
