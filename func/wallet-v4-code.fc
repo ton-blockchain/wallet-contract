@@ -1,9 +1,8 @@
-;; Simple wallet smart contract with plugins
+;; Wallet smart contract with plugins
 
 (slice, int) dict_get?(cell dict, int key_len, slice index) asm(index dict key_len) "DICTGET" "NULLSWAPIFNOT";
 (cell, int) dict_add_builder?(cell dict, int key_len, slice index, builder value) asm(value index dict key_len) "DICTADDB";
 (cell, int) dict_delete?(cell dict, int key_len, slice index) asm(index dict key_len) "DICTDEL";
-(slice, int) load_currency(slice s) asm( -> 1 0) "LDVARUINT32";
 
 () recv_internal(cell in_msg_cell, slice in_msg) impure {
   var cs = in_msg_cell.begin_parse();
@@ -17,7 +16,7 @@
     return ();
   }
   int op = in_msg~load_uint(32);
-  if (op != 0x706c7567) & (op != 0x626c6e63) & (op != 0x64737472) { ;; "plug" & "blnc" & "dstr"
+  if (op != 0x706c7567) & (op != 0x64737472) { ;; "plug" & "dstr"
     ;; ignore all messages not related to plugins
     return ();
   }
@@ -34,28 +33,18 @@
   int query_id = in_msg~load_uint(64);
   var msg = begin_cell();
   if (op == 0x706c7567) { ;; request funds
+
     (int r_toncoins, cell r_extra) = (in_msg~load_grams(), in_msg~load_dict());
     msg = msg.store_uint(0x18, 6)
              .store_slice(s_addr)
              .store_grams(r_toncoins)
              .store_dict(r_extra)
              .store_uint(0, 4 + 4 + 64 + 32 + 1 + 1)
-             .store_uint(0x706c7567 | 0x80000000, 32) ;; see guidelines
+             .store_uint(0x706c7567 | 0x80000000, 32)
              .store_uint(query_id, 64);
-  }
-  if (op == 0x626c6e63) { ;; request current balance
-    [int m_toncoins, cell m_extra] = get_balance();
-    msg = msg.store_uint(0x18, 6)
-             .store_slice(s_addr)
-             .store_grams(0)
-             .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-             .store_uint(0x626c6e63 | 0x80000000, 32) ;; see guidelines
-             .store_uint(query_id, 64)
-             .store_grams(m_toncoins)
-             .store_dict(m_extra);
-  }
-  if (op == 0x64737472) {
-    ;; remove plugin by its request
+
+  } elseif (op == 0x64737472) { ;; remove plugin by its request
+
     plugins~dict_delete?(8 + 256, wc_n_address);
     var ds = get_data().begin_parse().first_bits(32 + 32 + 256);
     set_data(begin_cell().store_slice(ds).store_dict(plugins).end_cell());
@@ -63,8 +52,9 @@
              .store_slice(s_addr)
              .store_grams(0)
              .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-             .store_uint(0x64737472 | 0x80000000, 32) ;; see guidelines
+             .store_uint(0x64737472 | 0x80000000, 32)
              .store_uint(query_id, 64);
+
   }
   send_raw_message(msg.end_cell(), 64);
 }
@@ -91,13 +81,15 @@
   cs~touch();
   int op = cs~load_uint(8);
   if (op == 0) { ;; simple send
+
     while (cs.slice_refs()) {
       var mode = cs~load_uint(8);
       send_raw_message(cs~load_ref(), mode);
     }
     return (); ;; have already saved the storage
-  }
-  if (op == 1) { ;; deploy and install plugin
+
+  } elseif (op == 1) { ;; deploy and install plugin
+
     int plugin_workchain = cs~load_int(8);
     int plugin_balance = cs~load_grams();
     (cell state_init, cell body) = (cs~load_ref(), cs~load_ref());
@@ -113,33 +105,43 @@
     send_raw_message(msg.end_cell(), 1);
     (plugins, int success?) = plugins.dict_add_builder?(8 + 256, wc_n_address, begin_cell());
     throw_unless(39, success?);
-  }
 
-  if (op == 2) { ;; install plugin
+  } elseif (op == 2) { ;; install plugin
+
     slice wc_n_address = cs~load_bits(8 + 256);
+    int query_id = cs~load_uint(64);
+    int amount = gastograms(10000); ;; todo
+
     (plugins, int success?) = plugins.dict_add_builder?(8 + 256, wc_n_address, begin_cell());
     throw_unless(39, success?);
+
     builder msg = begin_cell()
       .store_uint(0x18, 6)
       .store_uint(4, 3).store_slice(wc_n_address)
-      .store_grams(100000000)
+      .store_grams(amount)
       .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-      .store_uint(0x6e6f7465, 32);
+      .store_uint(0x6e6f7465, 32) ;; op
+      .store_uint(query_id, 64);
     send_raw_message(msg.end_cell(), 1);
-  }
 
-  if (op == 3) { ;; remove plugin
+  } elseif (op == 3) { ;; remove plugin
+
     slice wc_n_address = cs~load_bits(8 + 256);
+    int query_id = cs~load_uint(64);
+    int amount = gastograms(10000); ;; todo
+
     (plugins, int success?) = plugins.dict_delete?(8 + 256, wc_n_address);
     throw_unless(39, success?);
+
     builder msg = begin_cell()
       .store_uint(0x18, 6)
       .store_uint(4, 3).store_slice(wc_n_address)
-      .store_grams(100000000)
+      .store_grams(amount)
       .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-      .store_uint(0x64737472, 32)
-      .store_uint(cur_lt(), 64); ;; query id
-    send_raw_message(msg.end_cell(), 3);
+      .store_uint(0x64737472, 32) ;; op
+      .store_uint(query_id, 64);
+    send_raw_message(msg.end_cell(), 1);
+
   }
 
   set_data(begin_cell()

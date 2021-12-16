@@ -11,6 +11,12 @@ int op:subscription() asm "0x73756273 PUSHINT";
 int max_failed_attempts() asm "3 PUSHINT";
 int max_reserved_funds() asm "26 PUSHPOW2";
 
+(int) chain::short_msg_fwd_fee(int chain_id) inline {
+  ;; wallets on new workchains will require update of plugin contract
+  int config_index = 25 + chain_id;
+  return config_param(config_index).begin_parse().skip_bits(8).preload_uint(64);
+}
+
 ;; storage$_ wallet:MsgAddressInt
 ;;           beneficiary:MsgAddressInt
 ;;           amount:Grams
@@ -19,20 +25,6 @@ int max_reserved_funds() asm "26 PUSHPOW2";
 ;;           last_request_attempt:uint32
 ;;           failed_attempts:uint8
 ;;           subscription_id:uint32 = Storage;
-
-(int) chain::short_msg_fwd_fee(int chain_id) inline {
-  ;; wallets on new workchains will require update of plugin contract
-  int config_index = 25 + chain_id;
-  return config_param(config_index).begin_parse().skip_bits(8).preload_uint(64);
-}
-
-;; emit empty log message (the subscription is ended)
-() emit_log_destruct() impure inline_ref {
-  var msg = begin_cell().store_uint(0x30, 6) ;; 11 00 00
-                        .store_uint(0, 64 + 32 + 2)
-           .end_cell();
-  send_raw_message(msg, 2);
-}
 
 (slice, slice, int, int, int, int, int, int, int, int) load_storage() impure inline_ref {
   var ds = get_data().begin_parse();
@@ -76,25 +68,10 @@ int max_reserved_funds() asm "26 PUSHPOW2";
   send_raw_message(msg.end_cell(), mode);
 }
 
-() self_destruct(slice beneficiary) impure inline_ref {
-  emit_log_destruct();
-  forward_funds(beneficiary, true, op:destruct());
-}
-
-() request_plugin_removal(slice wallet) impure inline_ref {
-  var msg = begin_cell().store_uint(0x18, 6)
-                        .store_slice(wallet)
-                        .store_grams(wallet_processing_amount())
-                        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-                        .store_uint(op:destruct(), 32) ;; request op
-                        .store_uint(cur_lt(), 64); ;; query_id
-  send_raw_message(msg.end_cell(), 3);
-}
-
 () request_payment(slice wallet, int amount) impure inline_ref {
   var msg = begin_cell().store_uint(0x18, 6)
                         .store_slice(wallet)
-                        .store_grams(wallet_processing_amount())
+                        .store_grams( gastograms(10000) ) ;; todo
                         .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
                         .store_uint(op:payment_request(), 32) ;; request op
                         .store_uint(cur_lt(), 64) ;; query_id
@@ -114,7 +91,7 @@ int max_reserved_funds() asm "26 PUSHPOW2";
     int op = in_msg~load_uint(32);
     if (op == op:destruct()) { ;; "dstr"
         ;; end subscription
-        return request_plugin_removal(wallet);
+        return kill_self();
     }
     return forward_funds(beneficiary, false, op:fallback());
   }
@@ -131,24 +108,38 @@ int max_reserved_funds() asm "26 PUSHPOW2";
     int cur_timeslot = (now() - start_at) / period;
     throw_if(49, last_timeslot >= cur_timeslot);
     (int from_wc, _) = s_addr.parse_std_addr();
-    if (flags & 1) {
-      failed_attempts += 1;
-    } else {
-      if (msg_value > amount - chain::short_msg_fwd_fee(from_wc) ) {
-        last_payment = now();
-        failed_attempts = 0;
-        forward_funds(beneficiary, false, op:subscription());
-      }
+
+    if (msg_value >= amount - chain::short_msg_fwd_fee(from_wc) ) {
+      last_payment = now();
+      failed_attempts = 0;
+      forward_funds(beneficiary, false, op:subscription());
     }
+
     if (~ start_at) {
       start_at = now();
     }
     return save_storage(wallet, beneficiary, amount, period, start_at, timeout, last_payment, last_request, failed_attempts, subscription_id);
   }
   if (op == op:destruct()) { ;; self-destruct
-    ;; forward all the remaining funds to the beneficiary
-    return self_destruct(beneficiary);
+    ;; forward all the remaining funds to the beneficiary & destroy
+    return forward_funds(beneficiary, true, op:destruct());
   }
+}
+
+() kill_self() impure {
+  ;; send event to wallet
+
+  var msg = begin_cell().store_uint(0x18, 6)
+                        .store_slice(wallet)
+                        .store_grams( gastograms(10000) ) ;; todo
+                        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                        .store_uint(op:destruct(), 32) ;; request op
+                        .store_uint(cur_lt(), 64); ;; query_id
+  send_raw_message(msg.end_cell(), 3);
+
+  ;; forward all the remaining funds to the beneficiary & destroy
+
+  forward_funds(beneficiary, true, op:destruct());
 }
 
 () recv_external(slice in_msg) impure {
@@ -156,9 +147,13 @@ int max_reserved_funds() asm "26 PUSHPOW2";
   int last_timeslot = (last_payment - start_at) / period;
   int cur_timeslot = (now() - start_at) / period;
   throw_unless(30, (cur_timeslot > last_timeslot) & (last_request + timeout < now())); ;; too early request
-  throw_if(31, failed_attempts > max_failed_attempts());
   accept_message();
-  request_payment(wallet, amount);
+  if (failed_attempts > 3) {
+    kill_self();
+  } else {
+    request_payment(wallet, amount);
+    failed_attempts += 1;
+  }
   save_storage(wallet, beneficiary, amount, period, start_at, timeout, last_payment, now(), failed_attempts, subscription_id);
 }
 
