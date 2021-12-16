@@ -129,7 +129,7 @@ int max_reserved_funds() asm "26 PUSHPOW2";
 () kill_self() impure {
   ;; send event to wallet
 
-  var msg = begin_cell().store_uint(0x18, 6)
+  var msg = begin_cell().store_uint(0x10, 6)
                         .store_slice(wallet)
                         .store_grams( gastograms(10000) ) ;; todo
                         .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
