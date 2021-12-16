@@ -4,15 +4,16 @@
 (cell, int) dict_add_builder?(cell dict, int key_len, slice index, builder value) asm(value index dict key_len) "DICTADDB";
 (cell, int) dict_delete?(cell dict, int key_len, slice index) asm(index dict key_len) "DICTDEL";
 
-int gas_to_coins(int chain_id, int gas) inline_ref {
-  int config_index = 21 + chain_id;
+int gas_to_coins(int workchain, int gas) inline_ref {
+  int config_index = 21 + workchain;
   var cs = config_param(config_index).begin_parse();
-  if(cs.preload_uint(8) == 0xd1) {
-    cs.skip_bits(8 + 64 + 64); ;; gas_flat_pfx
+  if (cs.preload_uint(8) == 0xd1) { ;; gas_flat_pfx
+    cs~skip_bits(8 + 64 + 64);
   }
-  var t = cs~load_uint(8);
-  throw_unless(71, (t == 0xde) | (t == 0xdd));
-  return (gas * cs~load_uint(64)) >> 16;
+  int tag = cs~load_uint(8);
+  throw_unless(71, (tag == 0xdd) | (tag == 0xde)); ;; gas_prices or gas_prices_ext
+  int gas_price = cs~load_uint(64);
+  return (gas * gas_price) >> 16;
 }
 
 () recv_internal(cell in_msg_cell, slice in_msg) impure {
@@ -77,7 +78,7 @@ int gas_to_coins(int chain_id, int gas) inline_ref {
   var signature = in_msg~load_bits(512);
   var cs = in_msg;
   var (subwallet_id, valid_until, msg_seqno) = (cs~load_uint(32), cs~load_uint(32), cs~load_uint(32));
-  throw_if(35, valid_until <= now());
+  throw_if(36, valid_until <= now());
   var ds = get_data().begin_parse();
   var (stored_seqno, stored_subwallet, public_key, plugins) = (ds~load_uint(32), ds~load_uint(32), ds~load_uint(256), ds~load_dict());
   ds.end_parse();
