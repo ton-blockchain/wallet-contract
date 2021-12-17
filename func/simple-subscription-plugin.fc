@@ -7,7 +7,7 @@ int op:destruct() asm "0x64737472 PUSHINT";
 int op:payment_request() asm "0x706c7567 PUSHINT";
 int op:fallback() asm "0x756e6b77 PUSHINT";
 int op:subscription() asm "0x73756273 PUSHINT";
-int max_failed_attempts() asm "3 PUSHINT";
+int max_failed_attempts() asm "2 PUSHINT";
 int max_reserved_funds() asm "67108864 PUSHINT"; ;; 0.0671 TON
 
 int short_msg_fwd_fee(int workchain) inline {
@@ -146,9 +146,6 @@ int gas_to_coins(int workchain, int gas) inline_ref {
       forward_funds(beneficiary, false, op:subscription());
     }
 
-    if (~ start_time) {
-      start_time = now();
-    }
     return save_storage(wallet, beneficiary, amount, period, start_time, timeout, last_payment_time, last_request_time, failed_attempts, subscription_id);
   }
   if (op == op:destruct()) { ;; self-destruct
@@ -159,7 +156,6 @@ int gas_to_coins(int workchain, int gas) inline_ref {
 
 () recv_external(slice in_msg) impure {
   var (wallet, beneficiary, amount, period, start_time, timeout, last_payment_time, last_request_time, failed_attempts, subscription_id) = load_storage();
-  throw_unless(29, start_time);
   int last_timeslot = (last_payment_time - start_time) / period;
   int cur_timeslot = (now() - start_time) / period;
   throw_unless(30, (cur_timeslot > last_timeslot) & (last_request_time + timeout < now())); ;; too early request
