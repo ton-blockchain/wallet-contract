@@ -159,6 +159,7 @@ int gas_to_coins(int workchain, int gas) inline_ref {
 
 () recv_external(slice in_msg) impure {
   var (wallet, beneficiary, amount, period, start_time, timeout, last_payment_time, last_request_time, failed_attempts, subscription_id) = load_storage();
+  throw_unless(29, start_time);
   int last_timeslot = (last_payment_time - start_time) / period;
   int cur_timeslot = (now() - start_time) / period;
   throw_unless(30, (cur_timeslot > last_timeslot) & (last_request_time + timeout < now())); ;; too early request
