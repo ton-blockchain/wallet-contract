@@ -56,7 +56,9 @@ int gas_to_coins(int workchain, int gas) inline_ref {
              .store_uint(query_id, 64);
     send_raw_message(msg.end_cell(), 64);
 
-  } elseif (op == 0x64737472) { ;; remove plugin by its request
+  }
+
+  if (op == 0x64737472) { ;; remove plugin by its request
 
     plugins~dict_delete?(8 + 256, wc_n_address);
     var ds = get_data().begin_parse().first_bits(32 + 32 + 256);
@@ -95,16 +97,16 @@ int gas_to_coins(int workchain, int gas) inline_ref {
   commit();
   cs~touch();
   int op = cs~load_uint(8);
-  if (op == 0) { ;; simple send
 
+  if (op == 0) { ;; simple send
     while (cs.slice_refs()) {
       var mode = cs~load_uint(8);
       send_raw_message(cs~load_ref(), mode);
     }
     return (); ;; have already saved the storage
+  }
 
-  } elseif (op == 1) { ;; deploy and install plugin
-
+  if (op == 1) { ;; deploy and install plugin
     int plugin_workchain = cs~load_int(8);
     int plugin_balance = cs~load_grams();
     (cell state_init, cell body) = (cs~load_ref(), cs~load_ref());
@@ -120,9 +122,9 @@ int gas_to_coins(int workchain, int gas) inline_ref {
     send_raw_message(msg.end_cell(), 1);
     (plugins, int success?) = plugins.dict_add_builder?(8 + 256, wc_n_address, begin_cell());
     throw_unless(39, success?);
+  }
 
-  } elseif (op == 2) { ;; install plugin
-
+  if (op == 2) { ;; install plugin
     slice wc_n_address = cs~load_bits(8 + 256);
     int query_id = cs~load_uint(64);
     int wc = wc_n_address.preload_int(8);
@@ -139,9 +141,9 @@ int gas_to_coins(int workchain, int gas) inline_ref {
       .store_uint(0x6e6f7465, 32) ;; op
       .store_uint(query_id, 64);
     send_raw_message(msg.end_cell(), 1);
+  }
 
-  } elseif (op == 3) { ;; remove plugin
-
+  if (op == 3) { ;; remove plugin
     slice wc_n_address = cs~load_bits(8 + 256);
     int query_id = cs~load_uint(64);
     int wc = wc_n_address.preload_int(8);
@@ -158,7 +160,6 @@ int gas_to_coins(int workchain, int gas) inline_ref {
       .store_uint(0x64737472, 32) ;; op
       .store_uint(query_id, 64);
     send_raw_message(msg.end_cell(), 1);
-
   }
 
   set_data(begin_cell()
