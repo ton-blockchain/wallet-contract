@@ -4,19 +4,7 @@
 (cell, int) dict_add_builder?(cell dict, int key_len, slice index, builder value) asm(value index dict key_len) "DICTADDB";
 (cell, int) dict_delete?(cell dict, int key_len, slice index) asm(index dict key_len) "DICTDEL";
 
-int gas_to_coins(int workchain, int gas) inline_ref {
-  int config_index = 21 + workchain;
-  var cs = config_param(config_index).begin_parse();
-  if (cs.preload_uint(8) == 0xd1) { ;; gas_flat_pfx
-    cs~skip_bits(8 + 64 + 64);
-  }
-  int tag = cs~load_uint(8);
-  throw_unless(71, (tag == 0xdd) | (tag == 0xde)); ;; gas_prices or gas_prices_ext
-  int gas_price = cs~load_uint(64);
-  return (gas * gas_price) >> 16;
-}
-
-() recv_internal(cell in_msg_cell, slice in_msg) impure {
+() recv_internal(int msg_value, cell in_msg_cell, slice in_msg) impure {
   var cs = in_msg_cell.begin_parse();
   var flags = cs~load_uint(4);  ;; int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool
   if (flags & 1) {
@@ -47,6 +35,10 @@ int gas_to_coins(int workchain, int gas) inline_ref {
   if (op == 0x706c7567) { ;; request funds
 
     (int r_toncoins, cell r_extra) = (in_msg~load_grams(), in_msg~load_dict());
+
+    [int my_balance, _] = get_balance();
+    throw_unless(80, my_balance - msg_value >= r_toncoins);
+
     msg = msg.store_uint(0x18, 6)
              .store_slice(s_addr)
              .store_grams(r_toncoins)
@@ -119,16 +111,15 @@ int gas_to_coins(int workchain, int gas) inline_ref {
       .store_uint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
       .store_ref(state_init)
       .store_ref(body);
-    send_raw_message(msg.end_cell(), 1);
+    send_raw_message(msg.end_cell(), 3);
     (plugins, int success?) = plugins.dict_add_builder?(8 + 256, wc_n_address, begin_cell());
     throw_unless(39, success?);
   }
 
   if (op == 2) { ;; install plugin
     slice wc_n_address = cs~load_bits(8 + 256);
+    int amount = cs~load_grams();
     int query_id = cs~load_uint(64);
-    int wc = wc_n_address.preload_int(8);
-    int amount = gas_to_coins(wc, 10000);
 
     (plugins, int success?) = plugins.dict_add_builder?(8 + 256, wc_n_address, begin_cell());
     throw_unless(39, success?);
@@ -140,14 +131,13 @@ int gas_to_coins(int workchain, int gas) inline_ref {
       .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
       .store_uint(0x6e6f7465, 32) ;; op
       .store_uint(query_id, 64);
-    send_raw_message(msg.end_cell(), 1);
+    send_raw_message(msg.end_cell(), 3);
   }
 
   if (op == 3) { ;; remove plugin
     slice wc_n_address = cs~load_bits(8 + 256);
+    int amount = cs~load_grams();
     int query_id = cs~load_uint(64);
-    int wc = wc_n_address.preload_int(8);
-    int amount = gas_to_coins(wc, 10000);
 
     (plugins, int success?) = plugins.dict_delete?(8 + 256, wc_n_address);
     throw_unless(39, success?);
@@ -159,7 +149,7 @@ int gas_to_coins(int workchain, int gas) inline_ref {
       .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
       .store_uint(0x64737472, 32) ;; op
       .store_uint(query_id, 64);
-    send_raw_message(msg.end_cell(), 1);
+    send_raw_message(msg.end_cell(), 3);
   }
 
   set_data(begin_cell()
