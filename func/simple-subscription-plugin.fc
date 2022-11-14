@@ -1,3 +1,4 @@
+#pragma version =0.2.0;
 ;; Simple subscription plugin for wallet-v4
 ;; anyone can ask to send a subscription payment
 
