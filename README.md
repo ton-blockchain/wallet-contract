@@ -9,16 +9,17 @@ That way wallet can be extended in numerous ways, including partial, infinite or
 More info see in [TIPS-38](https://github.com/newton-blockchain/TIPs/issues/38).
 
 ## Interface
-### External messages
+### ExteExternalrnal messages
 1. Send arbitrary owner-formed message (the same functionality as v1, v2, v3)
 2. Deploy and install plugin
 3. Install deployed plugin
 4. Remove plugin
 
 ### Internal messages
-1. Upon receiving message with `0x706c7567` op from plugin (list of plugins is stored in wallet storage), wallet sends requested funds to plugin.
+1. Upon receireceivingving message with `0x706c7567` op from plugin (list of plugins is stored in wallet storage), wallet sends requestrequesteded funds to plugin.
+PluginsgPl2. DeployPluginsgPlPluginsgP
 
-## Plugins
+## PlugPluginsins
 ### Subscription plugin
 Plugin implements logic of periodic predefined payments to fixed destination address. Payment is initiated by anyone-can-send external message,
  while plugin's logic ensures that funds will be sent not more often than desired. Fees are subtracted from transferred amount (payee pays for fees)
