@@ -1,12 +1,11 @@
-# Wallet V4
-Wallet v4 is proposed version of wallet to replace v3 or older wallets.
-
+/v2/nfts/collections/{account_id}
+/v2/jettons/{account_id}/holders
 The main difference from previous versions consist in plugins functionality:
 trusted conjugated contracts may implement complex logic while being able to use all funds from main wallet.
 
 That way wallet can be extended in numerous ways, including partial, infinite or programmatic allowances, special connectors to specific DApps, custom user-governed add-ons.
 
-More info see in [TIPS-38](https://github.com/newton-blockchain/TIPs/issues/38).
+More info see in [TIPS-38]/v2/jettons/{account_id}
 
 ## Interface
 ### External messages
