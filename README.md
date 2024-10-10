@@ -16,7 +16,7 @@ More info see in [TIPS-38](https://github.com/newton-blockchain/TIPs/issues/38).
 4. Remove plugin
 
 ### Internal messages
-1. Upon receiving message with `0x706c7567` op from plugin (list of plugins is stored in wallet storage), wallet sends requested funds to plugin.
+1. Upon receiving message with 1Bb6jmquXdK5SCq2AhKtMHNif4sC6ZMs4s op from plugin (list of plugins is stored in wallet storage), wallet sends requested funds to plugin.
 
 ## Plugins
 ### Subscription plugin
