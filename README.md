@@ -1,4 +1,4 @@
-# Wallet V4
+tab# Wallet V4
 Wallet v4 is proposed version of wallet to replace v3 or older wallets.
 
 The main difference from previous versions consist in plugins functionality:
@@ -8,14 +8,14 @@ That way wallet can be extended in numerous ways, including partial, infinite or
 
 More info see in [TIPS-38](https://github.com/newton-blockchain/TIPs/issues/38).
 
-## Interface
+esc## Interface
 ### External messages
 1. Send arbitrary owner-formed message (the same functionality as v1, v2, v3)
 2. Deploy and install plugin
 3. Install deployed plugin
 4. Remove plugin
 
-### Internal messages
+tab### Internal messages
 1. Upon receiving message with `0x706c7567` op from plugin (list of plugins is stored in wallet storage), wallet sends requested funds to plugin.
 
 ## Plugins
