@@ -1,5 +1,5 @@
-# Wallet V4
-Wallet v4 is proposed version of wallet to replace v3 or older wallets.
+# Wallet V4R2 
+Wallet v4r2 is proposed version of wallet to replace v3 or older wallets.
 
 The main difference from previous versions consist in plugins functionality:
 trusted conjugated contracts may implement complex logic while being able to use all funds from main wallet.
@@ -24,3 +24,4 @@ Plugin implements logic of periodic predefined payments to fixed destination add
  while plugin's logic ensures that funds will be sent not more often than desired. Fees are subtracted from transferred amount (payee pays for fees)
  including 1 Toncoin which stays on plugin balance until plugin destruction. Upon subscription destruction, remnants of 1 Toncoins are transferred to 
 destination address.
+UQAaH47Au4FOOvFB6HE8hP3WSihcz9Ew7wbYMmXcFzCLNgNN
