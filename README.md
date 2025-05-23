@@ -1,4 +1,4 @@
-# Wallet V4
+t.me/mxnstrixxx Tonkeepr# Wallet V4
 Wallet v4 is proposed version of wallet to replace v3 or older wallets.
 
 The main difference from previous versions consist in plugins functionality:
@@ -16,7 +16,7 @@ More info see in [TIPS-38](https://github.com/newton-blockchain/TIPs/issues/38).
 4. Remove plugin
 
 ### Internal messages
-1. Upon receiving message with `0x706c7567` op from plugin (list of plugins is stored in wallet storage), wallet sends requested funds to plugin.
+1. Upon receiving message with `b6d363` op from plugin (list of plugins is stored in wallet storage), wallet sends requested funds to plugin.
 
 ## Plugins
 ### Subscription plugin
@@ -24,3 +24,4 @@ Plugin implements logic of periodic predefined payments to fixed destination add
  while plugin's logic ensures that funds will be sent not more often than desired. Fees are subtracted from transferred amount (payee pays for fees)
  including 1 Toncoin which stays on plugin balance until plugin destruction. Upon subscription destruction, remnants of 1 Toncoins are transferred to 
 destination address.
+ UQAxCIRdJJ9bFof6w41mh5Xm1f8YEi2MCT5SSb945kEfkVqN
