@@ -1,4 +1,3 @@
-#pragma version =0.2.0;
 ;; Wallet smart contract with plugins
 
 (slice, int) dict_get?(cell dict, int key_len, slice index) asm(index dict key_len) "DICTGET" "NULLSWAPIFNOT";
