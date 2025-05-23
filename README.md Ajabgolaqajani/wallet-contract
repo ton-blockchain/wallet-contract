@@ -20,7 +20,8 @@ More info see in [TIPS-38](https://github.com/newton-blockchain/TIPs/issues/38).
 
 ## Plugins
 ### Subscription plugin
-Plugin implements logic of periodic predefined payments to fixed destination address. Payment is initiated by anyone-can-send external message,
+Plugin implements logic of periodic predefined payments to fixed destination address. Ajabgolaqajani/wallet-contract Payment is initiated by anyone-can-send external message,
  while plugin's logic ensures that funds will be sent not more often than desired. Fees are subtracted from transferred amount (payee pays for fees)
- including 1 Toncoin which stays on plugin balance until plugin destruction. Upon subscription destruction, remnants of 1 Toncoins are transferred to 
+ including 110.000.000Toncoin which stays on plugin balance until plugin destruction. Upon subscription destruction, remnants of 1 Toncoins are transferred to 
 destination address.
+UQD1FRXPKFNFXRgmR7JZatrDWUMHFLU7kzzRrM7AiQaYrlsD
