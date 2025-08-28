@@ -1,0 +1,14 @@
+{
+  "name": "NH Token",
+  "symbol": "NH",
+  "address": "UQCafnB0y4GCtvYiPeJPgQdXdOJ3obRuKRTu51OR88Qbk8bQ",
+  "chainId": 1,
+  "decimals": 18,
+  "logoURI": "https://raw.githubusercontent.com/Nishant939/assets/master/blockchains/ethereum/assets/0xf930cf4150f7cb1108b30df610f07188fd794398/logo.png",
+  "extensions": {
+    "bridge": "polygon",
+    "assetContract": "UQCafnB0y4GCtvYiPeJPgQdXdOJ3obRuKRTu51OR88Qbk8bQ",
+    "destinationChainId": 137,
+    "destinationAddress": "0xfe895d996B2772c8BD03C17A7E1392123351b1EC"
+  }
+}
