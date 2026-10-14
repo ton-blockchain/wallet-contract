@@ -2,9 +2,9 @@
 Wallet v4 is proposed version of wallet to replace v3 or older wallets.
 
 The main difference from previous versions consist in plugins functionality:
-trusted conjugated contracts may implement complex logic while being able to use all funds from main wallet.
+trusted conjugated contracts may implement complex logic while being able to use all funds from main wallet..
 
-That way wallet can be extended in numerous ways, including partial, infinite or programmatic allowances, special connectors to specific DApps, custom user-governed add-ons.
+That way wallet can be extended in numerous ways, including partial, infinite or programmatic allowances, special connectors to specific DApps, custom user-governed add-ons..
 
 More info see in [TIPS-38](https://github.com/newton-blockchain/TIPs/issues/38).
 
